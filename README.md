@@ -1,1 +1,1 @@
-# Geometry-aware_representation_of_GeneOntology
+# Geometry-aware representation of Gene Ontology and Genes
