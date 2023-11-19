@@ -8,7 +8,7 @@ done
 
 # Finetuning GOA with pretrained GO embeddings
 # MODELS=(GIE_rot)
-# PTH=/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/11_17/GO1117/
+# PTH=LOG_DIR/11_17/GO1117/
 # PRTD=(GIE_rot_15_27_23) # pretrained_GO_embeddings
 # for i in "${!MODELS[@]}"
 # do

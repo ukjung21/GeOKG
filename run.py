@@ -79,7 +79,6 @@ parser.add_argument(
 # parser.add_argument('--u2', type=float, default=10.0)
 # parser.add_argument('--lam', type=float, default=3.0)
 parser.add_argument('--check', type=str, default=None)
-# parser.add_argument('--check', type=str, default='/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/07_20/GO0719/ATT2_15_44_12/model.pt')
 parser.add_argument('--prtd', type=str, default=None)
 
 parser.add_argument(
@@ -93,39 +92,6 @@ parser.add_argument(
 parser.add_argument(
     "--multi_c", action="store_true", help="Multiple curvatures per relation"
 )
-
-go_rel_dict = {'is_a': 0,
-               'part_of': 1,
-               'regulates': 2,
-               'has_part': 3,
-               'negatively_regulates': 4,
-               'positively_regulates': 5,
-               'occurs_in': 6}
-
-goa_rel_dict = {'goa_NOT_colocalizes_with': 0,
-                'goa_NOT_enables': 1,
-                'goa_NOT_involved_in': 2,
-                'goa_NOT_located_in': 3,
-                'goa_NOT_part_of': 4,
-                'goa_acts_upstream_of': 5,
-                'goa_acts_upstream_of_negative_effect': 6,
-                'goa_acts_upstream_of_or_within': 7,
-                'goa_acts_upstream_of_or_within_positive_effect': 8,
-                'goa_acts_upstream_of_positive_effect': 9,
-                'goa_colocalizes_with': 10,
-                'goa_contributes_to': 11,
-                'goa_enables': 12,
-                'goa_involved_in': 13,
-                'goa_is_active_in': 14,
-                'goa_located_in': 15,
-                'goa_part_of': 16,
-                'has_part': 17,
-                'is_a': 18,
-                'negatively_regulates': 19,
-                'occurs_in': 20,
-                'part_of': 21,
-                'positively_regulates': 22,
-                'regulates': 23}
 
 def train(args):
     save_dir = get_savedir(args.model, args.dataset)
@@ -144,7 +110,7 @@ def train(args):
     logging.getLogger("").addHandler(console)
     logging.info("Saving logs in: {}".format(save_dir))
 
-    dataset_path = os.path.join(r'/home/ukjung18/GIE1/GIE/GIE-master/data/', args.dataset)
+    dataset_path = os.path.join(r'data/', args.dataset)
     dataset = KGDataset(dataset_path, args.debug)
     args.sizes = dataset.get_shape()
 
@@ -166,7 +132,7 @@ def train(args):
         model.cuda()
         model.eval()
         
-        with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
+        with open(file='data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
             neg_trp = pickle.load(f)
         
         # test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
@@ -187,7 +153,7 @@ def train(args):
         eval_list = [args.dataset, args.model, round(roc,4), round(pr,4), round(max_f1,4), round(mic_f1,4), round(wa_f1,4)]
         for _, j in accuracy.items():
             eval_list.append(round(j,4))
-        with open('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+        with open('LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
             wr = csv.writer(f, delimiter='\t')
             wr.writerow(eval_list)
     
@@ -247,17 +213,8 @@ def train(args):
         model.cuda()
         model.eval()
 
-        # with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg_inv.pickle', mode='rb') as f:
-        #     neg_inv_trp = pickle.load(f)
-
-        # valid_metrics = avg_both(*model.compute_metrics(valid_examples, filters))
-        # valid_metrics = model.compute_metrics(valid_examples, filters)
-        # valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,10,50,100]': valid_metrics[2]['rhs']}
         logging.info(format_metrics(valid_metrics, split="valid"))
-        # valid_roc = model.compute_roc(valid_examples, neg_valid)
-        # logging.info("\t Valid ROAUC: ", valid_roc)
 
-        # test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
         test_metrics = model.module.compute_metrics(test_examples, filters, batch_size=args.batch_size)
         test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,10,50,100]': test_metrics[2]['rhs']}
         logging.info(format_metrics(test_metrics, split="test"))
@@ -288,7 +245,7 @@ def train(args):
             '{:.3f}'.format(hits[0]), '{:.3f}'.format(hits[1]), '{:.3f}'.format(hits[2]), '{:.3f}'.format(hits[3])]
         
         if (args.dataset).startswith('GO'):
-            with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
+            with open(file='data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
                 neg_trp = pickle.load(f) 
             roc, pr, max_f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)        
             eval_list.append(['{:.3f}'.format(roc), '{:.3f}'.format(pr), '{:.3f}'.format(max_f1)])
@@ -300,7 +257,7 @@ def train(args):
                 for _, j in accuracy.items():
                     eval_list.append('{:.3f}'.format(j))
 
-        with open('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+        with open('LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
             wr = csv.writer(f, delimiter='\t')
             wr.writerow(eval_list)
 
