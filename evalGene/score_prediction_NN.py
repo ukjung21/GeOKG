@@ -47,19 +47,6 @@ class Scheduler():
         for param_group in self.optim.param_groups:
             param_group['lr'] = lr
 
-# def load_data(samples, objects):
-#     x_ls = []
-#     y_ls = []
-#     for i in range(len(samples)):
-#         g1 = samples.iloc[i,0]
-#         g2 = samples.iloc[i,1]
-#         if g1 in objects and g2 in objects:
-#             g1i = objects.index(g1)
-#             g2i = objects.index(g2)
-#             x_ls.append([g1i, g2i])
-#             y_ls.append(samples.iloc[i,2])
-#     return np.array(x_ls), np.array(y_ls)
-
 def load_data(samples): #
     x_ls = []
     y_ls = []
@@ -92,15 +79,7 @@ def main():
     parser.add_argument('-patience', help='early stop patience', type=int, default=20)
     opt = parser.parse_args()
 
-    # load embeddings
-    # if opt.model[-3:] == "pth":
-    #     model = th.load(opt.model, map_location="cpu")
-    #     objects, embeddings = model['objects'], model['embeddings'].numpy()
-
-    # else:
-    #     model = np.load(opt.embeddings, allow_pickle=True).item()
-    #     objects, embeddings = model['objects'], model['embeddings']
-    embeddings = np.load(opt.path) #
+    embeddings = np.load(opt.path)
 
     # dataset processing
     print("... load data ...")
@@ -110,8 +89,7 @@ def main():
         data = pd.read_csv(opt.dset)
 
     device = th.device('cuda:'+str(opt.gpu) if th.cuda.is_available() else 'cpu')
-    # X, y = load_data(data, objects)
-    X, y = load_data(data) #
+    X, y = load_data(data)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
@@ -202,12 +180,11 @@ def main():
     rmse = np.sqrt(mean_squared_error(y, yhat))
     print("R2: "+str(r2))
     print("RMSE: "+str(rmse))
-    # pd.DataFrame({'y' : y, 'yhat' : yhat}).to_csv(opt.fout, index=False)
     pd.DataFrame({'y' : y, 'yhat' : yhat}).to_csv(opt.fout+'score/'+opt.model+'.txt', index=False)
     
     eval_list = [opt.model, '', "R2: {:.4f}".format(r2), "RMSE: {:.4f}".format(rmse)]
     
-    with open('/home/ukjung18/HiG2Vec/evalGene/score_evaluation.tsv', mode='a', newline='') as f:
+    with open('score_evaluation.tsv', mode='a', newline='') as f:
         wr = csv.writer(f, delimiter='\t')
         wr.writerow(eval_list)
 

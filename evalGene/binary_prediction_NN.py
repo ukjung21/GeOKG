@@ -76,8 +76,6 @@ def curve_plot(fprs, tprs, metric):
         rec = tprs
         plt.plot(prec , rec, label='P-R')            
         plt.plot([1, 0], [0, 1], 'k--', label='Random')
-        
-        # plt.plot([0, 1], [0, 1], 'k--', label='Random')
  
         start, end = plt.xlim()
         plt.xticks(np.round(np.arange(start, end, 0.1),2))
@@ -86,18 +84,7 @@ def curve_plot(fprs, tprs, metric):
         plt.xlabel('Precision')
         plt.ylabel('Recall')
         plt.legend()
-# def load_data(samples, objects):
-#     x_ls = []
-#     y_ls = []
-#     for i in range(len(samples)):
-#         g1 = samples.iloc[i,0]
-#         g2 = samples.iloc[i,1]
-#         if g1 in objects and g2 in objects:
-#             g1i = objects.index(g1)
-#             g2i = objects.index(g2)
-#             x_ls.append([g1i, g2i])
-#             y_ls.append(samples.iloc[i,2])
-#     return np.array(x_ls), np.array(y_ls)
+
 def load_data(samples):
     x_ls = []
     y_ls = []
@@ -112,7 +99,6 @@ def map_to_vec(samples, embeddings):
     x_ls = []
     for i in range(len(samples)):
         x_ls.append(np.concatenate((embeddings[int(samples[i,0].item())], embeddings[int(samples[i,1].item())])).tolist())
-        # x_ls.append(np.concatenate((embeddings[int(samples[i,0].item())-42950], embeddings[int(samples[i,1].item())-42950])).tolist())
     return th.FloatTensor(x_ls)
 
 def main():
@@ -131,18 +117,7 @@ def main():
     parser.add_argument('-print_each', help='Print loss each n-th epoch', type=int, default=5)
     opt = parser.parse_args()
 
-    # load embeddings
-    # if opt.model[-3:] == "pth":
-    #     model = th.load(opt.model, map_location="cpu")
-    #     objects, embeddings = model['objects'], model['embeddings'].cpu().numpy()
-
-    # else:
-    #     model = np.load(opt.model, allow_pickle=True).item()
-    #     objects, embeddings = model['objects'], model['embeddings']
-    embeddings = np.load(opt.path)
-    # with open(opt.path, 'rb') as f:
-    #     embeddings = pickle.load(f)
-    
+    embeddings = np.load(opt.path)    
 
     # dataset processing
     print("... load data ...")
@@ -228,7 +203,7 @@ def main():
             print("Epoch [{}/{}] Train Loss: {:.6f}  Val Loss: {:.6f}".format(epoch+1, opt.epochs, np.mean(epoch_loss), np.mean(val_loss)))
             
 
-    th.save(opt_model_state_dict, '/home/ukjung18/HiG2Vec/evalGene/model/binary_model/'+opt.model+'.pt')
+    th.save(opt_model_state_dict, 'model/binary_model/'+opt.model+'.pt')
     # Calculate the test result
     net.load_state_dict(opt_model_state_dict)
     print("Optimal tuning: Epoch {}, Val Loss: {:.6f}".format(opt_eph+1, opt_loss))
@@ -256,24 +231,15 @@ def main():
     denom = rec + prec
     f1_scores = np.divide(numerator, denom, out=np.zeros_like(denom), where=(denom!=0))
     max_f1 = np.max(f1_scores)
-    # mac_f1 = f1_score(y, yhat, average='macro')
-    # mic_f1 = f1_score(y, yhat, average='micro')
-    plt.savefig('/home/ukjung18/HiG2Vec/evalGene/ppi_pred/binary/'+opt.model+'.png', dpi=600)
+    plt.savefig('ppi_pred/binary/'+opt.model+'.png', dpi=600)
     
-    # with open(file='/home/ukjung18/HiG2Vec/evalGene/evaluation.txt', mode='a') as f:
-    #     f.write(opt.model)
-    #     f.write("\t Test ROAUC: {:.4f}".format(auroc))
-    #     f.write("\t Test PRAUC: {:.4f}".format(auprc))
-    #     f.write("\t Test max F1 Score: {:.4f}".format(max_f1))
-    #     f.write("\n")
     eval_list = [opt.model, '', "Test ROAUC: {:.4f}".format(auroc), "Test PRAUC: {:.4f}".format(auprc), \
                 "Test max F1 Score: {:.4f}".format(max_f1)]
     
-    with open('/home/ukjung18/HiG2Vec/evalGene/evaluation.tsv', mode='a', newline='') as f:
+    with open('evaluation.tsv', mode='a', newline='') as f:
         wr = csv.writer(f, delimiter='\t')
         wr.writerow(eval_list)
 
-    # print("AUC: "+str(auc(fpr, tpr)))
     pd.DataFrame({'y' : y, 'yhat' : yhat}).to_csv(opt.fout+'binary/'+opt.model+'.txt', index=False)
 
 
