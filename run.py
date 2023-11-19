@@ -6,6 +6,7 @@ import os
 
 import torch
 import torch.optim
+import torch.nn
 
 import models
 import optimizers.regularizers as regularizers
@@ -15,6 +16,7 @@ from optimizers.kg_optimizer import KGOptimizer
 from utils.train import get_savedir, avg_both, format_metrics, count_params
 import pickle
 import numpy as np
+import csv
 
 parser = argparse.ArgumentParser(
     description="Knowledge Graph Embedding"
@@ -24,7 +26,7 @@ parser.add_argument(
     help="Knowledge Graph dataset"
 )
 parser.add_argument(
-    "--model", default="GIE", choices=['EUC', 'HYP', 'ATT2', 'GIE'], help="Knowledge Graph embedding model"
+    "--model", default="GIE", help="Knowledge Graph embedding model"
 )
 parser.add_argument(
     "--regularizer", choices=["N3", "F2"], default="N3", help="Regularizer"
@@ -72,15 +74,13 @@ parser.add_argument(
 parser.add_argument(
     "--dtype", default="double", type=str, choices=["single", "double"], help="Machine precision"
 )
-parser.add_argument(
-    "--space", default="gie", type=str, choices=["euc", "hyp", "att2", "gie"], help="Machine precision"
-)
-parser.add_argument('--margin', type=float, default=1.5)
-parser.add_argument('--u1', type=float, default=0.05)
-parser.add_argument('--u2', type=float, default=10.0)
-parser.add_argument('--lam', type=float, default=3.0)
+# parser.add_argument('--margin', type=float, default=1.5)
+# parser.add_argument('--u1', type=float, default=0.05)
+# parser.add_argument('--u2', type=float, default=10.0)
+# parser.add_argument('--lam', type=float, default=3.0)
 parser.add_argument('--check', type=str, default=None)
-# parser.add_argument('--check', type=str, default='/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/04_16/GO_rel_1/GIE_12_15_05/model.pt')
+# parser.add_argument('--check', type=str, default='/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/07_20/GO0719/ATT2_15_44_12/model.pt')
+parser.add_argument('--prtd', type=str, default=None)
 
 parser.add_argument(
     "--double_neg", action="store_true",
@@ -93,11 +93,39 @@ parser.add_argument(
 parser.add_argument(
     "--multi_c", action="store_true", help="Multiple curvatures per relation"
 )
-parser.add_argument(
-    "--do_save", action="store_true", help="Multiple curvatures per relation"
-)
 
+go_rel_dict = {'is_a': 0,
+               'part_of': 1,
+               'regulates': 2,
+               'has_part': 3,
+               'negatively_regulates': 4,
+               'positively_regulates': 5,
+               'occurs_in': 6}
 
+goa_rel_dict = {'goa_NOT_colocalizes_with': 0,
+                'goa_NOT_enables': 1,
+                'goa_NOT_involved_in': 2,
+                'goa_NOT_located_in': 3,
+                'goa_NOT_part_of': 4,
+                'goa_acts_upstream_of': 5,
+                'goa_acts_upstream_of_negative_effect': 6,
+                'goa_acts_upstream_of_or_within': 7,
+                'goa_acts_upstream_of_or_within_positive_effect': 8,
+                'goa_acts_upstream_of_positive_effect': 9,
+                'goa_colocalizes_with': 10,
+                'goa_contributes_to': 11,
+                'goa_enables': 12,
+                'goa_involved_in': 13,
+                'goa_is_active_in': 14,
+                'goa_located_in': 15,
+                'goa_part_of': 16,
+                'has_part': 17,
+                'is_a': 18,
+                'negatively_regulates': 19,
+                'occurs_in': 20,
+                'part_of': 21,
+                'positively_regulates': 22,
+                'regulates': 23}
 
 def train(args):
     save_dir = get_savedir(args.model, args.dataset)
@@ -127,34 +155,42 @@ def train(args):
     test_examples = dataset.get_examples("test")
     filters = dataset.get_filters()
 
-
     with open(os.path.join(save_dir, "config.json"), "w") as fjson:
         json.dump(vars(args), fjson)
 
-
     model = getattr(models, args.model)(args)
+    model = torch.nn.DataParallel(model)
+    
     if args.check:
-        model.load_state_dict(torch.load((args.check), map_location='cuda:0'))
+        model.load_state_dict(torch.load((args.check), map_location='cuda'))
         model.cuda()
         model.eval()
         
         with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
-            neg_trp = pickle.load(f) 
-        with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg_inv.pickle', mode='rb') as f:
-            neg_inv_trp = pickle.load(f)
+            neg_trp = pickle.load(f)
         
         # test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
         test_metrics = model.compute_metrics(test_examples, filters)
-        test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,3,10]': test_metrics[2]['rhs']}
+        test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,10,50,100]': test_metrics[2]['rhs']}
         logging.info(format_metrics(test_metrics, split="test"))
-        # rhs_roc, lhs_roc, rhs_pr, lhs_pr, rhs_f1, lhs_f1 = model.compute_roc(test_examples, neg_trp, neg_inv_trp, save_path=save_dir)
-        rhs_roc, rhs_pr, rhs_f1 = model.compute_roc(test_examples, neg_trp, neg_inv_trp, save_path=save_dir)
-        accuracy = model.compute_rel_acc(test_examples, save_path=save_dir)
         
-        print("\t Test ROAUC (rhs): {:.4f}".format(rhs_roc))
-        print("\t Test PRAUC (rhs): {:.4f}".format(rhs_pr))
-        print("\t Test max F1 Score (rhs): {:.4f}".format(rhs_f1))
-        print("\t Test rel Accuracy: {:.4f}".format(accuracy))
+        entities = model.entity
+        relations = model.rel
+        np.save(os.path.join(save_dir, 'entity_embedding.npy'), entities.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'relation_embedding.npy'), relations.weight.detach().cpu().numpy())
+
+        # roc, pr, max_f1 = model.compute_roc(test_examples, neg_trp, save_path=save_dir, num_rel=args.sizes[1])
+        roc, pr, max_f1 = model.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+        # mic_f1, wa_f1, accuracy = model.compute_rel_acc(test_examples, save_path=save_dir, num_rel=args.sizes[1])
+        mic_f1, wa_f1, accuracy = model.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+        
+        eval_list = [args.dataset, args.model, round(roc,4), round(pr,4), round(max_f1,4), round(mic_f1,4), round(wa_f1,4)]
+        for _, j in accuracy.items():
+            eval_list.append(round(j,4))
+        with open('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+            wr = csv.writer(f, delimiter='\t')
+            wr.writerow(eval_list)
+    
     else:
         total = count_params(model)
         logging.info("Total number of parameters {}".format(total))
@@ -180,9 +216,9 @@ def train(args):
             logging.info("\t Epoch {} | average valid loss: {:.4f}".format(step, valid_loss))
 
             if (step + 1) % args.valid == 0:
-                # valid_metrics = avg_both(*model.compute_metrics(valid_examples, filters))
-                valid_metrics = model.compute_metrics(valid_examples, filters)
-                valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,3,10]': valid_metrics[2]['rhs']}
+                # valid_metrics = avg_both(*model.module.compute_metrics(valid_examples, filters))
+                valid_metrics = model.module.compute_metrics(valid_examples, filters, batch_size=args.batch_size)
+                valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,10,50,100]': valid_metrics[2]['rhs']}
                 logging.info(format_metrics(valid_metrics, split="valid"))
 
                 valid_mrr = valid_metrics["MRR"]
@@ -211,43 +247,63 @@ def train(args):
         model.cuda()
         model.eval()
 
-        with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
-            neg_trp = pickle.load(f) 
-        with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg_inv.pickle', mode='rb') as f:
-            neg_inv_trp = pickle.load(f)
+        # with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg_inv.pickle', mode='rb') as f:
+        #     neg_inv_trp = pickle.load(f)
 
         # valid_metrics = avg_both(*model.compute_metrics(valid_examples, filters))
-        valid_metrics = model.compute_metrics(valid_examples, filters)
-        valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,3,10]': valid_metrics[2]['rhs']}
+        # valid_metrics = model.compute_metrics(valid_examples, filters)
+        # valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,10,50,100]': valid_metrics[2]['rhs']}
         logging.info(format_metrics(valid_metrics, split="valid"))
         # valid_roc = model.compute_roc(valid_examples, neg_valid)
         # logging.info("\t Valid ROAUC: ", valid_roc)
 
         # test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
-        test_metrics = model.compute_metrics(test_examples, filters)
-        test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,3,10]': test_metrics[2]['rhs']}
+        test_metrics = model.module.compute_metrics(test_examples, filters, batch_size=args.batch_size)
+        test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,10,50,100]': test_metrics[2]['rhs']}
         logging.info(format_metrics(test_metrics, split="test"))
-        # rhs_roc, lhs_roc, rhs_pr, lhs_pr, rhs_f1, lhs_f1 = model.compute_roc(test_examples, neg_trp, neg_inv_trp, save_path=save_dir)
-        rhs_roc, rhs_pr, rhs_f1 = model.compute_roc(test_examples, neg_trp, neg_inv_trp, save_path=save_dir)
-        accuracy = model.compute_rel_acc(test_examples, save_path=save_dir)
+            
+        entities = model.module.entity
+        relations = model.module.rel
+        head_bias = model.module.bh
+        tail_bias = model.module.bt
+        
+        np.save(os.path.join(save_dir, 'entity_embedding.npy'), entities.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'relation_embedding.npy'), relations.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'bh_embedding.npy'), head_bias.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'bt_embedding.npy'), tail_bias.weight.detach().cpu().numpy())
+        diag_relations = model.module.rel_diag
+        np.save(os.path.join(save_dir, 'diag_relation_embedding.npy'), diag_relations.weight.detach().cpu().numpy())
+        
+        if not args.model.endswith('E') or args.model=='AttE':
+            
+            diag1_relations = model.module.rel_diag1
+            diag2_relations = model.module.rel_diag2
+            
+            np.save(os.path.join(save_dir, 'diag1_relation_embedding.npy'), diag1_relations.weight.detach().cpu().numpy())
+            np.save(os.path.join(save_dir, 'diag2_relation_embedding.npy'), diag2_relations.weight.detach().cpu().numpy())
+        
+        # roc, pr, max_f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, num_rel=args.sizes[1])
+        hits = test_metrics['hits@[1,10,50,100]'].numpy()
+        eval_list = [args.dataset, args.model, '', '{:.3f}'.format(test_metrics['MRR']), \
+            '{:.3f}'.format(hits[0]), '{:.3f}'.format(hits[1]), '{:.3f}'.format(hits[2]), '{:.3f}'.format(hits[3])]
+        
+        if (args.dataset).startswith('GO'):
+            with open(file='/home/ukjung18/GIE1/GIE/GIE-master/data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
+                neg_trp = pickle.load(f) 
+            roc, pr, max_f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)        
+            eval_list.append(['{:.3f}'.format(roc), '{:.3f}'.format(pr), '{:.3f}'.format(max_f1)])
+        
+            if (not args.dataset.endswith('1018')):
+                # mic_f1, wa_f1, accuracy = model.module.compute_rel_acc(test_examples, save_path=save_dir, num_rel=args.sizes[1])
+                mic_f1, wa_f1, accuracy = model.module.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+                eval_list.append(['{:.3f}'.format(mic_f1), '{:.3f}'.format(wa_f1)])
+                for _, j in accuracy.items():
+                    eval_list.append('{:.3f}'.format(j))
 
-        with open(file='/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/'+args.space+'_eval_metrics.txt', mode='a') as f:
-            f.write("\t Test ROAUC (rhs): {:.4f}".format(rhs_roc))
-            # f.write("\t Test ROAUC (lhs): {:.4f}\n".format(lhs_roc))
-            f.write("\t Test PRAUC (rhs): {:.4f}".format(rhs_pr))
-            # f.write("\t Test PRAUC (lhs): {:.4f}\n".format(lhs_pr))
-            f.write("\t Test max F1 Score (rhs): {:.4f}".format(rhs_f1))
-            # f.write("\t Test max F1 Score (lhs): {:.4f}\n\n".format(lhs_f1))
-            f.write("\t Test rel Accuracy: {:.4f}".format(accuracy))
-            f.write("\n")
+        with open('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+            wr = csv.writer(f, delimiter='\t')
+            wr.writerow(eval_list)
 
-        if args.do_save:
-            # torch.save(model.state_dict(), os.path.join(save_path, 'checkpoint'))
-            model.load_state_dict(torch.load(os.path.join(save_dir, "model.pt"), map_location='cuda:0'))
-            entities = model.entity
-            relations, _ = torch.chunk(model.rel.weight.data, 2, dim=1)
-            np.save(os.path.join(save_dir, 'entity_embedding.npy'), entities.weight.detach().cpu().numpy())
-            np.save(os.path.join(save_dir, 'relation_embedding.npy'), relations.detach().cpu().numpy())
 
 if __name__ == "__main__":
     train(parser.parse_args())

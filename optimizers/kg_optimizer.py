@@ -19,7 +19,7 @@ class KGOptimizer(object):
         self.double_neg = double_neg
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean')
         self.neg_sample_size = neg_sample_size
-        self.n_entities = model.sizes[0]
+        self.n_entities = model.module.sizes[0]
 
     def reduce_lr(self, factor=0.8):
         for param_group in self.optimizer.param_groups:
@@ -40,29 +40,28 @@ class KGOptimizer(object):
             ).to(input_batch.dtype)
             negative_batch[:, 0] = negsamples
         
-        # negative_batch = input_batch.repeat(1, 1)
-        # batch_size = input_batch.shape[0]
-        # negsamples = torch.Tensor(np.random.randint(
-        #     self.n_entities,
-        #     size=batch_size)
-        # ).to(input_batch.dtype)
-        # negative_batch[:, 2] = negsamples
-        # if self.double_neg:
-        #     negsamples = torch.Tensor(np.random.randint(
-        #         self.n_entities,
-        #         size=batch_size)
-        #     ).to(input_batch.dtype)
-        #     negative_batch[:, 0] = negsamples
         return negative_batch
 
     def neg_sampling_loss(self, input_batch):
         positive_score, factors = self.model(input_batch)
-        positive_score = F.logsigmoid(-positive_score)
+        # print('pos_score: ', positive_score[0])
+        positive_score = F.logsigmoid(positive_score)
 
         neg_samples = self.get_neg_samples(input_batch)
+        # print('neg_sample: ', neg_samples.shape)
         negative_score, _ = self.model(neg_samples)
-        negative_score = F.logsigmoid(negative_score)
+        # print('neg_score: ', negative_score[0])
+        negative_score = F.logsigmoid(-negative_score)
+        
+        
         loss = - torch.cat([positive_score, negative_score], dim=0).mean()
+        # positive_score, factors = self.model(input_batch)
+        # positive_score = F.logsigmoid(-positive_score)
+
+        # neg_samples = self.get_neg_samples(input_batch)
+        # negative_score, _ = self.model(neg_samples)
+        # negative_score = F.logsigmoid(negative_score)
+        # loss = - torch.cat([positive_score, negative_score], dim=0).mean()
         
 #         m=self.args.margin
         # u1=self.args.u1
@@ -163,6 +162,7 @@ class KGOptimizer(object):
                 self.optimizer.zero_grad()
                 l.backward()
                 self.optimizer.step()
+                # self.optimizer.zero_grad()
 
                 b_begin += self.batch_size
                 total_loss += l
