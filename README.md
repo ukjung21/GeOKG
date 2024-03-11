@@ -1,1 +1,1 @@
-# Geometry-aware representation of Gene Ontology and Genes
+# GeOKG: Geometry-aware representation of Gene Ontology and Genes
