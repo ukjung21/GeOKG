@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 
 import torch
@@ -36,12 +35,6 @@ class KGModel(nn.Module, ABC):
         self.bh.weight.data = torch.zeros((sizes[0], 1), dtype=self.data_type)
         self.bt = nn.Embedding(sizes[0], 1)
         self.bt.weight.data = torch.zeros((sizes[0], 1), dtype=self.data_type)
-        # prtd_bh = np.load('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/09_03/GO0831/ATT2_rot_01_36_23/bh_embedding.npy')
-        # self.bh.weight.data[:42950] = torch.from_numpy(prtd_bh, dtype=self.data_type)
-        # self.bh.weight.data[42950:] = torch.zeros((sizes[0]-42950, 1), dtype=self.data_type)
-        # prtd_bt = np.load('/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/09_03/GO0831/ATT2_rot_01_36_23/bt_embedding.npy')
-        # self.bt.weight.data[:42950] = torch.from_numpy(prtd_bt, dtype=self.data_type)
-        # self.bt.weight.data[42950:] = torch.zeros((sizes[0]-42950, 1), dtype=self.data_type)
 
     @abstractmethod
     def get_queries(self, queries):
@@ -80,7 +73,6 @@ class KGModel(nn.Module, ABC):
         return head_e, rel_e, rhs_e
 
     def forward(self, queries, eval_mode=False):
-        # (lhs_e, lhs_biases), att_wts = self.get_queries(queries)
         lhs_e, lhs_biases = self.get_queries(queries)
         rhs_e, rhs_biases = self.get_rhs(queries, eval_mode)
         predictions = self.score((lhs_e, lhs_biases), (rhs_e, rhs_biases), eval_mode)
@@ -95,7 +87,6 @@ class KGModel(nn.Module, ABC):
             while b_begin < len(queries):
                 these_queries = queries[b_begin:b_begin + batch_size].cuda()
 
-                # q, att_wts = self.get_queries(these_queries)
                 q = self.get_queries(these_queries)
                 rhs = self.get_rhs(these_queries, eval_mode=False)
 
@@ -109,26 +100,19 @@ class KGModel(nn.Module, ABC):
                 ranks[b_begin:b_begin + batch_size] += torch.sum(
                     (scores >= targets).float(), dim=1
                 ).cpu()
-                #     scores[i, torch.LongTensor(filter_out)] = 1e6
-                # ranks[b_begin:b_begin + batch_size] += torch.sum(
-                #     (scores <= targets).float(), dim=1
-                # ).cpu()
+                
                 b_begin += batch_size
-        # return ranks, att_wts
+                
         return ranks
     
     def curve_plot(self, fprs, tprs, direc, metric):
         if metric == 'roc':
-            # ROC Curve를 plot 곡선으로 그림.
             if direc =='rhs':
                 plt.plot(fprs , tprs, label='ROC')
             else:
                 plt.plot(fprs , tprs, label='ROC(lhs)')
             plt.plot([0, 1], [0, 1], 'k--', label='Random')
-            # 가운데 대각선 직선을 그림. 
-            # plt.plot([0, 1], [0, 1], 'k--', label='Random')
 
-            # FPR X 축의 Scale을 0.1 단위로 변경, X,Y 축명 설정등   
             start, end = plt.xlim()
             plt.xticks(np.round(np.arange(start, end, 0.1),2))
             plt.xlim(0,1)
@@ -136,17 +120,14 @@ class KGModel(nn.Module, ABC):
             plt.xlabel('FPR( 1 - Sensitivity )')
             plt.ylabel('TPR( Recall )')
             plt.legend()
+            
         elif metric == 'pr':
-             # ROC Curve를 plot 곡선으로 그림.
             if direc =='rhs':
                 plt.plot(fprs , tprs, label='P-R')
             else:
                 plt.plot(fprs , tprs, label='P-R(lhs)')
             plt.plot([1, 0], [0, 1], 'k--', label='Random')
-            # 가운데 대각선 직선을 그림. 
-            # plt.plot([0, 1], [0, 1], 'k--', label='Random')
-
-            # FPR X 축의 Scale을 0.1 단위로 변경, X,Y 축명 설정등   
+            
             start, end = plt.xlim()
             plt.xticks(np.round(np.arange(start, end, 0.1),2))
             plt.xlim(0,1)
@@ -157,7 +138,7 @@ class KGModel(nn.Module, ABC):
             
         
     def get_roc(
-            self, queries: torch.Tensor, # 500 * (lhs, rel, rhs)
+            self, queries: torch.Tensor,
             batch_size: int = 1000,
             direc='rhs', negs=[], save_path=None, num_rel=7
     ):
@@ -174,10 +155,7 @@ class KGModel(nn.Module, ABC):
                     these_queries = queries[b_begin:b_begin + batch_size].cuda()
                     these_negs = negs[b_begin:b_begin + batch_size].cuda()
 
-                    # q = self.get_queries(these_queries) # predict
                     preds = [self.get_queries_lp(these_queries, torch.LongTensor([r]*these_queries.shape[0]).cuda()) for r in range(num_rel)]
-                    # with open(file='/home/ukjung18/GIE1/GIE/GIE-master/LOG_DIR/curv.pickle', mode='wb') as f:
-                    #     pickle.dump(preds, f)
                     
                     rhs = self.get_rhs(these_queries, eval_mode=False) # target
                     neg_rhs = self.get_rhs(these_negs, eval_mode=False)
@@ -191,7 +169,6 @@ class KGModel(nn.Module, ABC):
                     b_begin += batch_size
                     bar.update(batch_size)
 
-        # y_true = np.concatenate([np.ones(len(pos_arr)), np.zeros(len(neg_arr))])
         y_true = np.concatenate([np.ones(len(pos_arr)), np.zeros(len(neg_arr))])
         y_scores = np.append(pos_arr, neg_arr)
         y_pred = y_scores
@@ -208,11 +185,8 @@ class KGModel(nn.Module, ABC):
         self.curve_plot(prec, recall, direc, 'pr')
         
         roauc = roc_auc_score(y_true, y_pred)
-        # ap_score = average_precision_score(y_true, y_pred)
         prauc = auc(recall, prec)
 
-        # mac_f1 = f1_score(y_true, y_pred, average='macro')
-        # mic_f1 = f1_score(y_true, y_pred, average='micro')
         numerator = 2 * recall * prec
         denom = recall + prec
         f1_scores = np.divide(numerator, denom, out=np.zeros_like(denom), where=(denom!=0))
@@ -220,17 +194,11 @@ class KGModel(nn.Module, ABC):
         
         print('AUROC: ', roauc)
         print('AUPRC: ', prauc)
-        print('Max F1: ', max_f1)
-        # print('Macro F1: ', mac_f1)
-        # print('Micro F1: ', mic_f1)
-        # print('threshold for entity predict: ', best_thres)
+        print('F1-score: ', max_f1)
 
-        # if direc == 'lhs':
-        #     plt.savefig(save_path+'/ent_predict.png', dpi=600)
         plt.savefig(save_path+'/ent_predict.png', dpi=600)
 
         return roauc, prauc, max_f1
-        # return roauc, prauc, mac_f1, mic_f1
     
     def get_rel_acc(
         self, queries: torch.Tensor,
@@ -247,17 +215,12 @@ class KGModel(nn.Module, ABC):
 
                 while b_begin < len(queries):
                     these_queries = queries[b_begin:b_begin + batch_size].cuda()
-                    # these_negs = negs[b_begin:b_begin + batch_size].cuda()
 
-                    # q = self.get_queries(these_queries) # predict
                     preds = [self.get_queries_lp(these_queries, torch.LongTensor([r]*these_queries.shape[0]).cuda()) for r in range(num_rel)]
                     
                     
                     rhs = self.get_rhs(these_queries, eval_mode=False) # target
-                    # neg_rhs = self.get_rhs(these_negs, eval_mode=False)
 
-                    # pos_scores = self.score(q, rhs, eval_mode=False)
-                    # neg_scores = self.score(q, neg_rhs, eval_mode=False)
                     p_scores = torch.stack([10.0+self.score(q, rhs, eval_mode=False) for q in preds]).squeeze()
                     softmax = torch.nn.Softmax(dim=0)
                     pos_scores = softmax(p_scores)
@@ -276,41 +239,19 @@ class KGModel(nn.Module, ABC):
             pickle.dump(y_pred, f)
         
         accuracy = get_accuracy(y_true, y_pred)
-        # prec = precision_score(y_true, y_pred)
-        # recall = recall_score(y_true, y_pred)
         mic_f1 = f1_score(y_true, y_pred, average='micro')
-        wa_f1 = f1_score(y_true, y_pred, average='weighted')
-        
-        # conf_mat = confusion_matrix(y_true, y_pred)
-        # kappa = quadratic_weighted_kappa(conf_mat)
+        mac_f1 = f1_score(y_true, y_pred, average='macro')
 
-        # print('Accuracy: ', accuracy)
-        # print('Cohen\'s Kappa: ', kappa)
-        # print('Macro Average F1 score: ', mac_f1)
-        # print('Micro Average F1 score: ', mic_f1)
-        # print('Weighted Average F1 score: ', wa_f1)
-
-        # return accuracy, wa_f1
-        return mic_f1, wa_f1, accuracy
+        return mac_f1, mic_f1, accuracy
     
     def compute_metrics(self, examples, filters, batch_size=500):
         mean_rank = {}
         mean_reciprocal_rank = {}
         hits_at = {}
 
-        # for m in ["rhs", "lhs"]:
         for m in ["rhs"]:
             q = examples.clone()
-            # if m == "lhs":
-            #     tmp = torch.clone(q[:, 0])
-            #     q[:, 0] = q[:, 2]
-            #     q[:, 2] = tmp
-            #     q[:, 1] += self.sizes[1] // 2
-            ranks = self.get_ranking(q, filters[m], batch_size=batch_size)    
-            # ranks, att_wts = self.get_ranking(q, filters[m], batch_size=batch_size)
-            # if m == 'rhs':
-            #     att_wts = att_wts.cpu().numpy()
-            #     np.save(save_dir+'attention_weights.npy', att_wts)
+            ranks = self.get_ranking(q, filters[m], batch_size=batch_size)
             mean_rank[m] = torch.mean(ranks).item()
             mean_reciprocal_rank[m] = torch.mean(1. / ranks).item()
             hits_at[m] = torch.FloatTensor((list(map(
@@ -325,7 +266,6 @@ class KGModel(nn.Module, ABC):
         mean_reciprocal_rank = {}
         hits_at = {}
 
-        # for m in ["rhs", "lhs"]:
         for r in range(num_rel):
             mean_rank[r] = {}
             mean_reciprocal_rank[r] = {}
@@ -348,44 +288,17 @@ class KGModel(nn.Module, ABC):
         for m in ["rhs"]:
             q = examples.clone()
             if m == "rhs":
-                # negs = np.array([t[2] for t in neg_trp])
                 negs = torch.from_numpy(np.array(neg_trp).astype("int64"))
                 roauc, prauc, max_f1 = self.get_roc(q, batch_size=batch_size, direc=m, negs=negs, save_path=save_path, num_rel=num_rel)
                 
-        # return rhs_roauc, lhs_roauc, rhs_prauc, lhs_prauc, rhs_f1, lhs_f1
         return roauc, prauc, max_f1
 
     def compute_rel_acc(self, examples, batch_size=500, save_path=None, num_rel=5):
-        # plt.figure(figsize=(9, 18))
         q = examples.clone()
-        # acc, waf1 = self.get_rel_acc(q, batch_size=batch_size, save_path=save_path, num_rel=num_rel)
-        mic_f1, wa_f1, acc = self.get_rel_acc(q, batch_size=batch_size, save_path=save_path, num_rel=num_rel)
+        mac_f1, mic_f1, acc = self.get_rel_acc(q, batch_size=batch_size, save_path=save_path, num_rel=num_rel)
 
-        # return acc, waf1
-        return mic_f1, wa_f1, acc
+        return mac_f1, mic_f1, acc
     
-def quadratic_weighted_kappa(conf_mat):
-    assert conf_mat.shape[0] == conf_mat.shape[1]
-    cate_num = conf_mat.shape[0]
-
-    # Quadratic weighted matrix
-    weighted_matrix = np.zeros((cate_num, cate_num))
-    for i in range(cate_num):
-        for j in range(cate_num):
-            weighted_matrix[i][j] = 1 - float(((i - j)**2) / ((cate_num - 1)**2))
-
-    # Expected matrix
-    ground_truth_count = np.sum(conf_mat, axis=1)
-    pred_count = np.sum(conf_mat, axis=0)
-    expected_matrix = np.outer(ground_truth_count, pred_count)
-
-    # Normalization
-    conf_mat = conf_mat / conf_mat.sum()
-    expected_matrix = expected_matrix / expected_matrix.sum()
-
-    observed = (conf_mat * weighted_matrix).sum()
-    expected = (expected_matrix * weighted_matrix).sum()
-    return (observed - expected) / (1 - expected)
 
 def get_accuracy(y_true, y_pred):
     accuracy = defaultdict(int)

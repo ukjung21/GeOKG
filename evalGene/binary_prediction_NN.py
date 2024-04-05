@@ -54,12 +54,9 @@ def curve_plot(fprs, tprs, metric):
     if metric == 'roc':
         
         plt.subplot(2, 1, 1)
-        plt.title('GO Link Prediction: ROC')
+        plt.title('PPI binary classification: ROC')
         plt.plot(fprs , tprs, label='ROC')
         plt.plot([0, 1], [0, 1], 'k--', label='Random')
-        
-        # plt.plot([0, 1], [0, 1], 'k--', label='Random')
-
         
         start, end = plt.xlim()
         plt.xticks(np.round(np.arange(start, end, 0.1),2))
@@ -71,7 +68,7 @@ def curve_plot(fprs, tprs, metric):
     else:
         
         plt.subplot(2, 1, 2)
-        plt.title('GO Link Prediction: PR')
+        plt.title('PPI binary classification: PR')
         prec = fprs
         rec = tprs
         plt.plot(prec , rec, label='P-R')            
@@ -125,7 +122,6 @@ def main():
         data = pd.read_csv(opt.dset, sep="\t")
     else:
         data = pd.read_csv(opt.dset)
-    # X, y = load_data(data, objects)
     X, y = load_data(data)
 
     device = th.device('cuda:'+str(opt.gpu) if th.cuda.is_available() else 'cpu')
@@ -234,14 +230,13 @@ def main():
     plt.savefig('ppi_pred/binary/'+opt.model+'.png', dpi=600)
     
     eval_list = [opt.model, '', "Test ROAUC: {:.4f}".format(auroc), "Test PRAUC: {:.4f}".format(auprc), \
-                "Test max F1 Score: {:.4f}".format(max_f1)]
+                "Test F1 Score: {:.4f}".format(max_f1)]
     
-    with open('evaluation.tsv', mode='a', newline='') as f:
+    with open('bin_evaluation.tsv', mode='a', newline='') as f:
         wr = csv.writer(f, delimiter='\t')
         wr.writerow(eval_list)
 
     pd.DataFrame({'y' : y, 'yhat' : yhat}).to_csv(opt.fout+'binary/'+opt.model+'.txt', index=False)
-
 
            
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ import torch.nn
 import models
 import optimizers.regularizers as regularizers
 from datasets.kg_dataset import KGDataset
-from models import all_models
+from models.geokg import *
 from optimizers.kg_optimizer import KGOptimizer
 from utils.train import get_savedir, avg_both, format_metrics, count_params
 import pickle
@@ -22,11 +22,11 @@ parser = argparse.ArgumentParser(
     description="Knowledge Graph Embedding"
 )
 parser.add_argument(
-    "--dataset", default="WN18RR",
+    "--dataset", default="GO0404",
     help="Knowledge Graph dataset"
 )
 parser.add_argument(
-    "--model", default="GIE", help="Knowledge Graph embedding model"
+    "--model", default="GeOKG", help="Knowledge Graph embedding model"
 )
 parser.add_argument(
     "--regularizer", choices=["N3", "F2"], default="N3", help="Regularizer"
@@ -35,23 +35,23 @@ parser.add_argument(
     "--reg", default=0, type=float, help="Regularization weight"
 )
 parser.add_argument(
-    "--optimizer", choices=["Adagrad", "Adam", "SparseAdam"], default="Adagrad",
+    "--optimizer", choices=["Adagrad", "Adam", "SparseAdam"], default="Adam",
     help="Optimizer"
 )
 parser.add_argument(
-    "--max_epochs", default=50, type=int, help="Maximum number of epochs to train for"
+    "--max_epochs", default=300, type=int, help="Maximum number of epochs to train for"
 )
 parser.add_argument(
-    "--patience", default=10, type=int, help="Number of epochs before early stopping"
+    "--patience", default=15, type=int, help="Number of epochs before early stopping"
 )
 parser.add_argument(
-    "--valid", default=3, type=float, help="Number of epochs before validation"
+    "--valid", default=5, type=float, help="Number of epochs before validation"
 )
 parser.add_argument(
-    "--rank", default=1000, type=int, help="Embedding dimension"
+    "--rank", default=200, type=int, help="Embedding dimension"
 )
 parser.add_argument(
-    "--batch_size", default=1000, type=int, help="Batch size"
+    "--batch_size", default=1024, type=int, help="Batch size"
 )
 parser.add_argument(
     "--neg_sample_size", default=50, type=int, help="Negative sample size, -1 to not use negative sampling"
@@ -63,21 +63,18 @@ parser.add_argument(
     "--init_size", default=1e-3, type=float, help="Initial embeddings' scale"
 )
 parser.add_argument(
-    "--learning_rate", default=1e-1, type=float, help="Learning rate"
+    "--learning_rate", default=1e-3, type=float, help="Learning rate"
 )
 parser.add_argument(
     "--gamma", default=0, type=float, help="Margin for distance-based losses"
 )
 parser.add_argument(
-    "--bias", default="constant", type=str, choices=["constant", "learn", "none"], help="Bias type (none for no bias)"
+    "--bias", default="learn", type=str, choices=["constant", "learn", "none"], help="Bias type (none for no bias)"
 )
 parser.add_argument(
     "--dtype", default="double", type=str, choices=["single", "double"], help="Machine precision"
 )
-# parser.add_argument('--margin', type=float, default=1.5)
-# parser.add_argument('--u1', type=float, default=0.05)
-# parser.add_argument('--u2', type=float, default=10.0)
-# parser.add_argument('--lam', type=float, default=3.0)
+
 parser.add_argument('--check', type=str, default=None)
 parser.add_argument('--prtd', type=str, default=None)
 
@@ -135,7 +132,6 @@ def train(args):
         with open(file='data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
             neg_trp = pickle.load(f)
         
-        # test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
         test_metrics = model.compute_metrics(test_examples, filters)
         test_metrics = {'MR': test_metrics[0]['rhs'], 'MRR': test_metrics[1]['rhs'], 'hits@[1,10,50,100]': test_metrics[2]['rhs']}
         logging.info(format_metrics(test_metrics, split="test"))
@@ -145,15 +141,13 @@ def train(args):
         np.save(os.path.join(save_dir, 'entity_embedding.npy'), entities.weight.detach().cpu().numpy())
         np.save(os.path.join(save_dir, 'relation_embedding.npy'), relations.weight.detach().cpu().numpy())
 
-        # roc, pr, max_f1 = model.compute_roc(test_examples, neg_trp, save_path=save_dir, num_rel=args.sizes[1])
-        roc, pr, max_f1 = model.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
-        # mic_f1, wa_f1, accuracy = model.compute_rel_acc(test_examples, save_path=save_dir, num_rel=args.sizes[1])
-        mic_f1, wa_f1, accuracy = model.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+        roc, pr, f1 = model.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+        mac_f1, mic_f1, accuracy = model.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
         
-        eval_list = [args.dataset, args.model, round(roc,4), round(pr,4), round(max_f1,4), round(mic_f1,4), round(wa_f1,4)]
+        eval_list = [args.dataset, args.model, round(roc,4), round(pr,4), round(f1,4), round(mac_f1,4), round(mic_f1,4)]
         for _, j in accuracy.items():
             eval_list.append(round(j,4))
-        with open('LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+        with open('evalGO/eval_metrics.tsv', mode='a', newline='') as f:
             wr = csv.writer(f, delimiter='\t')
             wr.writerow(eval_list)
     
@@ -168,8 +162,9 @@ def train(args):
         optimizer = KGOptimizer(args, model, regularizer, optim_method, args.batch_size, args.neg_sample_size,
                                 bool(args.double_neg))
         counter = 0
-        best_mrr = None
-        best_epoch = None
+        best_mrr = 0
+        best_epoch = 0
+        best_loss = 1e6
         logging.info("\t Start training")
         for step in range(args.max_epochs):
 
@@ -182,13 +177,12 @@ def train(args):
             logging.info("\t Epoch {} | average valid loss: {:.4f}".format(step, valid_loss))
 
             if (step + 1) % args.valid == 0:
-                # valid_metrics = avg_both(*model.module.compute_metrics(valid_examples, filters))
                 valid_metrics = model.module.compute_metrics(valid_examples, filters, batch_size=args.batch_size)
                 valid_metrics = {'MR': valid_metrics[0]['rhs'], 'MRR': valid_metrics[1]['rhs'], 'hits@[1,10,50,100]': valid_metrics[2]['rhs']}
                 logging.info(format_metrics(valid_metrics, split="valid"))
 
                 valid_mrr = valid_metrics["MRR"]
-                if not best_mrr or valid_mrr > best_mrr:
+                if valid_mrr > best_mrr:
                     best_mrr = valid_mrr
                     counter = 0
                     best_epoch = step
@@ -205,6 +199,9 @@ def train(args):
 
 
         logging.info("\t Optimization finished")
+        logging.info("\t Loading best model saved at epoch {}".format(best_epoch))
+        model.load_state_dict(torch.load(os.path.join(save_dir, "model.pt")))
+        model.cuda()
         if not best_mrr:
             torch.save(model.cpu().state_dict(), os.path.join(save_dir, "model.pt"))
         else:
@@ -229,35 +226,27 @@ def train(args):
         np.save(os.path.join(save_dir, 'bh_embedding.npy'), head_bias.weight.detach().cpu().numpy())
         np.save(os.path.join(save_dir, 'bt_embedding.npy'), tail_bias.weight.detach().cpu().numpy())
         diag_relations = model.module.rel_diag
+        diag1_relations = model.module.rel_diag1
+        diag2_relations = model.module.rel_diag2
         np.save(os.path.join(save_dir, 'diag_relation_embedding.npy'), diag_relations.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'diag1_relation_embedding.npy'), diag1_relations.weight.detach().cpu().numpy())
+        np.save(os.path.join(save_dir, 'diag2_relation_embedding.npy'), diag2_relations.weight.detach().cpu().numpy())
         
-        if not args.model.endswith('E') or args.model=='AttE':
-            
-            diag1_relations = model.module.rel_diag1
-            diag2_relations = model.module.rel_diag2
-            
-            np.save(os.path.join(save_dir, 'diag1_relation_embedding.npy'), diag1_relations.weight.detach().cpu().numpy())
-            np.save(os.path.join(save_dir, 'diag2_relation_embedding.npy'), diag2_relations.weight.detach().cpu().numpy())
-        
-        # roc, pr, max_f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, num_rel=args.sizes[1])
         hits = test_metrics['hits@[1,10,50,100]'].numpy()
         eval_list = [args.dataset, args.model, '', '{:.3f}'.format(test_metrics['MRR']), \
             '{:.3f}'.format(hits[0]), '{:.3f}'.format(hits[1]), '{:.3f}'.format(hits[2]), '{:.3f}'.format(hits[3])]
         
-        if (args.dataset).startswith('GO'):
-            with open(file='data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
-                neg_trp = pickle.load(f) 
-            roc, pr, max_f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)        
-            eval_list.append(['{:.3f}'.format(roc), '{:.3f}'.format(pr), '{:.3f}'.format(max_f1)])
+        with open(file='data/'+args.dataset+'/test_neg.pickle', mode='rb') as f:
+            neg_trp = pickle.load(f) 
+        roc, pr, f1 = model.module.compute_roc(test_examples, neg_trp, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)        
+        eval_list.append(['{:.3f}'.format(roc), '{:.3f}'.format(pr), '{:.3f}'.format(f1)])
         
-            if (not args.dataset.endswith('1018')):
-                # mic_f1, wa_f1, accuracy = model.module.compute_rel_acc(test_examples, save_path=save_dir, num_rel=args.sizes[1])
-                mic_f1, wa_f1, accuracy = model.module.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
-                eval_list.append(['{:.3f}'.format(mic_f1), '{:.3f}'.format(wa_f1)])
-                for _, j in accuracy.items():
-                    eval_list.append('{:.3f}'.format(j))
+        mac_f1, mic_f1, accuracy = model.module.compute_rel_acc(test_examples, save_path=save_dir, batch_size=args.batch_size, num_rel=args.sizes[1]//2)
+        eval_list.append(['{:.3f}'.format(mac_f1), '{:.3f}'.format(mic_f1)])
+        for _, j in accuracy.items():
+            eval_list.append('{:.3f}'.format(j))    
 
-        with open('LOG_DIR/eval_metrics.tsv', mode='a', newline='') as f:
+        with open('evalGO/eval_metrics.tsv', mode='a', newline='') as f:
             wr = csv.writer(f, delimiter='\t')
             wr.writerow(eval_list)
 

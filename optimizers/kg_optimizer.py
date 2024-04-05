@@ -44,69 +44,13 @@ class KGOptimizer(object):
 
     def neg_sampling_loss(self, input_batch):
         positive_score, factors = self.model(input_batch)
-        # print('pos_score: ', positive_score[0])
         positive_score = F.logsigmoid(positive_score)
 
         neg_samples = self.get_neg_samples(input_batch)
-        # print('neg_sample: ', neg_samples.shape)
         negative_score, _ = self.model(neg_samples)
-        # print('neg_score: ', negative_score[0])
         negative_score = F.logsigmoid(-negative_score)
         
-        
         loss = - torch.cat([positive_score, negative_score], dim=0).mean()
-        # positive_score, factors = self.model(input_batch)
-        # positive_score = F.logsigmoid(-positive_score)
-
-        # neg_samples = self.get_neg_samples(input_batch)
-        # negative_score, _ = self.model(neg_samples)
-        # negative_score = F.logsigmoid(negative_score)
-        # loss = - torch.cat([positive_score, negative_score], dim=0).mean()
-        
-#         m=self.args.margin
-        # u1=self.args.u1
-        # u2=self.args.u2
-#         lam=self.args.lam
-        
-        # self.act = nn.Sigmoid()
-        # self.criterion = nn.Softplus()
-        # self.relu = nn.ReLU()
-        
-        # p_score, factors = self.model(input_batch)
-        # neg_samples = self.get_neg_samples(input_batch)
-        # n_score, _ = self.model(neg_samples)        
-        
-        # zeros_neg = torch.zeros_like(n_score)
-        # zeros_pos = torch.zeros_like(p_score)
-        
-        # SSLoss
-        # loss = torch.max(p_score - u1, zeros_pos).mean() + lam * torch.max(u2 - n_score, zeros_neg).mean()
-        
-        # logistic SSLoss
-        # positive_score = F.logsigmoid(u1-p_score)
-        # negative_score = F.logsigmoid(n_score-u2)
-        # loss = - torch.cat([positive_score, negative_score], dim=0).mean()
-        
-        # softplusLoss
-        # positive_score = self.criterion(-p_score)
-        # negative_score = self.criterion(n_score)
-        # loss = torch.cat([positive_score, negative_score], dim=0).mean()
-        
-        # softplus SSLoss
-        # log_p = -torch.log(self.act(p_score))
-        # log_n = -torch.log(self.act(n_score))
-        # p_loss = self.relu(u1 - log_p)
-        # n_loss = self.relu(log_n - u2)
-        # loss = torch.cat([p_loss, n_loss], dim=0).mean()
-        
-        # total = torch.cat((p_score, n_score), 1)
-        # t_soft = self.act(total)
-        # p_s, n_s = torch.split(t_soft, [1, 10], dim=1)
-        # log_p = -torch.log(p_s)
-        # log_n = -torch.log(n_s)
-        # p_loss = self.relu(log_p+math.log(u1)).mean()
-        # n_loss = self.relu(-math.log(u2)-log_n).mean()
-        # loss = p_loss + lam * n_loss
 
         return loss, factors
 

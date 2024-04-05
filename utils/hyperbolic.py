@@ -3,8 +3,6 @@ import torch
 MIN_NORM = 1e-15
 BALL_EPS = {torch.float32: 4e-3, torch.float64: 1e-5}
 
-
-
 class Artanh(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x):
