@@ -2,6 +2,7 @@
 
 ### Data Preprocessing
 To download and preprocess datasets (GO, GOA, STRING), run `preprocessing/go_string.ipynb` and `preprocessing/goa_string.ipynb`
+Then run `filter_gen.py`
 
 ### Embedding GO
 To train GeOKG for GO embeddings 
