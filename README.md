@@ -20,13 +20,13 @@ $ python3 run.py --dataset GOA0404 --model GeOKG --rank 200 --batch_size 256 --m
 To evaluate gene embeddings for 3 PPI predictions
 * PPI Binary Prediction
 ```
-$ evalGene/binary_prediction_NN.py -dset evalGene/GOA0404_ppi.csv -model result/GeOKG_binary.pth -fout evalGene/binary_output.txt
+$ python evalGene/binary_prediction_NN.py -dset evalGene/GOA0404_ppi.csv -model result/GeOKG_binary.pth -fout evalGene/binary_output.txt
 ```
 * Binding Affinity Prediction
 ```
-$ evalGene/score_prediction_NN.py -dset evalGene/GOA0404_score_ppi.csv -model result/GeOKG_score.pth -fout evalGene/score_output.txt
+$ python evalGene/score_prediction_NN.py -dset evalGene/GOA0404_score_ppi.csv -model result/GeOKG_score.pth -fout evalGene/score_output.txt
 ```
 * Interaction Type Prediction
 ```
-$ evalGene/type_prediction_NN.py -dset evalGene/GOA0404_type_ppi.csv -model result/GeOKG_type.pth -fout evalGene/type_output.txt
+$ python evalGene/type_prediction_NN.py -dset evalGene/GOA0404_type_ppi.csv -model result/GeOKG_type.pth -fout evalGene/type_output.txt
 ```
