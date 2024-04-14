@@ -8,7 +8,7 @@ To train GeOKG for GO embeddings
 ```
 $ python3 run.py --dataset GO0404 --model GeOKG_go --rank 200 --batch_size 256 --multi_c
 ```
-Then the evaluation results are recorded in `evalGO/eval_metrics.tsv`
+Then the evaluation results (GO-level link prediction, link reconstruction, relation-type prediction) are recorded in `evalGO/eval_metrics.tsv`
 
 ### Embedding GOA
 To train GeOKG for GOA embeddings 
