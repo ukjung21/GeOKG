@@ -1,7 +1,7 @@
 # GeOKG: Geometry-aware representation of Gene Ontology and Genes
 
 ### Data Preprocessing
-To download and preprocess datasets (GO, GOA, STRING), run `preprocessing/go_string.ipynb` and `preprocessing/goa_string.ipynb`.
+To download and preprocess datasets (GO, GOA, STRING), run `preprocessing/go_string.py` and `preprocessing/goa_string.py`.
 Then run `filter_gen.py`
 
 ### Embedding GO
@@ -19,11 +19,11 @@ $ python3 run.py --dataset GOA0404 --model GeOKG --rank 200 --batch_size 256 --m
 
 ### PPI Prediction
 To evaluate gene embeddings for 3 PPI predictions
-* PPI Binary Prediction
+* Interaction Binary Prediction
 ```
 $ python evalGene/binary_prediction_NN.py -path evalGO/{date}/GOA0404/entity_embedding.npy -dset evalGene/GOA0404_ppi.csv -model result/GeOKG_binary.pth -fout evalGene/binary_output.txt
 ```
-* Binding Affinity Prediction
+* Interaction Score Prediction
 ```
 $ python evalGene/score_prediction_NN.py -path evalGO/{date}/GOA0404/entity_embedding.npy -dset evalGene/GOA0404_score_ppi.csv -model result/GeOKG_score.pth -fout evalGene/score_output.txt
 ```
