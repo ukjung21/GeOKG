@@ -32,5 +32,5 @@ $ python evalGene/score_prediction_NN.py -path evalGO/{date}/GOA0404/entity_embe
 $ python evalGene/type_prediction_NN.py -path evalGO/{date}/GOA0404/entity_embedding.npy -dset evalGene/GOA0404_type_ppi.csv -model result/GeOKG_type.pth -fout evalGene/type_output.txt
 ```   
    
-To replicate the gene-level experiment results, follow the download link below and utilize the provided gene embeddings.   
-[GeOKG GOA embeddings 50, 100, 200, 500 and 1000 dim](https://drive.google.com/drive/folders/1sQXpW-jtdMdo4KFr5vOJlWf13uj5JTL1?usp=drive_link)
+For the replication of the gene-level experiment results, the pre-trained GOA embeddings are publicly available in the below link:
+[GeOKG GOA embeddings 50, 100, 200, 500 and 1000 dim]([https://zenodo.org/records/15165076])
