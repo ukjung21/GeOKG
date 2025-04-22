@@ -12,17 +12,7 @@ import gzip
 import shutil
 
 def load_go(raw_data_dir, go_obo_url = 'http://purl.obolibrary.org/obo/go/go-basic.obo'):
-	# Check if we have the ./data directory already
-	if(not os.path.isfile(raw_data_dir)):
-		# Emulate mkdir -p (no error if folder exists)
-		try:
-			os.mkdir(raw_data_dir)
-		except OSError as e:
-			if(e.errno != 17):
-				raise e
-	else:
-		raise Exception('Data path (' + raw_data_dir + ') exists as a file.\n \
-						Please rename, remove or change the desired location of the data path.')
+	os.makedirs(raw_data_dir, exist_ok=True)
 
 	# Check if the file exists already
 	if(not os.path.isfile(raw_data_dir+'go-basic.obo')):
@@ -70,16 +60,7 @@ def data_split(go_id_df):
 	return train_df, valid_df, test_df
 
 def save_go(train_df, valid_df, test_df, neg_df, go_dir):
-	if(not os.path.isfile(go_dir)):
-    # Emulate mkdir -p (no error if folder exists)
-		try:
-			os.mkdir(go_dir)
-		except OSError as e:
-			if(e.errno != 17):
-				raise e
-	else:
-		raise Exception('Data path (' + go_dir + ') exists as a file. '
-					'Please rename, remove or change the desired location of the data path.')
+	os.makedirs(go_dir, exist_ok=True)
 	
 	with open(go_dir+"train.pickle", 'wb') as f:
 		pickle.dump(train_df.to_numpy().astype('uint64'), f)
@@ -91,17 +72,7 @@ def save_go(train_df, valid_df, test_df, neg_df, go_dir):
 		pickle.dump(neg_df.to_numpy().astype('uint64'), f)
 
 def save_src_data(go_df, ent_df, src_dir):
-	if(not os.path.isfile(src_dir)):
-    # Emulate mkdir -p (no error if folder exists)
-		try:
-			os.mkdir(src_dir)
-		except OSError as e:
-			if(e.errno != 17):
-				raise e
-			
-	else:
-		raise Exception('Data path (' + src_dir + ') exists as a file. '
-					'Please rename, remove or change the desired location of the data path.')
+	os.makedirs(src_dir, exist_ok=True)
 		
 	go_df.to_csv(src_dir+'edges.tsv', sep='\t', index=False)
 	ent_df.to_csv(src_dir+'entities.tsv', sep='\t', index=False)
@@ -252,9 +223,9 @@ def save_ppi_type(src_dir, str2prot, ppi_dict, prt_ls, raw_data_dir):
 
 def main():
 
-	raw_data_dir = "../raw_data/"
-	go_dir = "../data/GO/"
-	src_dir = "../src_data/GO/"
+	raw_data_dir = "./raw_data/"
+	go_dir = "./data/GO/"
+	src_dir = "./src_data/GO/"
 
 	go = load_go(raw_data_dir)
 

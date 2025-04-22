@@ -110,11 +110,11 @@ def save_indexed_ppi_type(src_dir, prot_to_id, eval_type_pth):
 	ppi_type_df.to_csv(eval_type_pth, index=False, header=None)
 
 def main():
-	src_dir = "../src_data/GO/"
-	eval_bin_pth = "../evalGene/GOA_ppi.csv"
-	eval_score_pth = "../evalGene/GOA_score_ppi.csv"
-	eval_type_pth = "../evalGene/GOA_type_ppi.csv"
-	goa_dir = "../data/GOA/"
+	src_dir = "./src_data/GO/"
+	eval_bin_pth = "./evalGene/GOA_ppi.csv"
+	eval_score_pth = "./evalGene/GOA_score_ppi.csv"
+	eval_type_pth = "./evalGene/GOA_type_ppi.csv"
+	goa_dir = "./data/GOA/"
 
 	go_trp = pd.read_csv(src_dir+'edges.tsv', sep = "\t")
 	goa_trp = pd.read_csv(src_dir+'goa_edges.tsv', sep = "\t")
