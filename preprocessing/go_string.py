@@ -11,24 +11,24 @@ from ftplib import FTP
 import gzip
 import shutil
 
-def load_go(data_folder, go_obo_url = 'http://purl.obolibrary.org/obo/go/go-basic.obo'):
+def load_go(raw_data_dir, go_obo_url = 'http://purl.obolibrary.org/obo/go/go-basic.obo'):
 	# Check if we have the ./data directory already
-	if(not os.path.isfile(data_folder)):
+	if(not os.path.isfile(raw_data_dir)):
 		# Emulate mkdir -p (no error if folder exists)
 		try:
-			os.mkdir(data_folder)
+			os.mkdir(raw_data_dir)
 		except OSError as e:
 			if(e.errno != 17):
 				raise e
 	else:
-		raise Exception('Data path (' + data_folder + ') exists as a file.\n \
+		raise Exception('Data path (' + raw_data_dir + ') exists as a file.\n \
 						Please rename, remove or change the desired location of the data path.')
 
 	# Check if the file exists already
-	if(not os.path.isfile(data_folder+'go-basic.obo')):
-		go_obo = wget.download(go_obo_url, data_folder+'go-basic.obo')
+	if(not os.path.isfile(raw_data_dir+'go-basic.obo')):
+		go_obo = wget.download(go_obo_url, raw_data_dir+'go-basic.obo')
 	else:
-		go_obo = data_folder+'go-basic.obo'
+		go_obo = raw_data_dir+'go-basic.obo'
 		
 	go = obo_parser.GODag(go_obo, optional_attrs=['relationship'])
 	
@@ -253,8 +253,8 @@ def save_ppi_type(src_dir, str2prot, ppi_dict, prt_ls, raw_data_dir):
 def main():
 
 	raw_data_dir = "../raw_data/"
-	go_dir = "../data/GO0719/"
-	src_dir = "../src_data/GO0719/"
+	go_dir = "../data/GO/"
+	src_dir = "../src_data/GO/"
 
 	go = load_go(raw_data_dir)
 
