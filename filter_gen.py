@@ -16,12 +16,12 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument(
-    '--directory', type=str, default='GO0404'
+    '--directory', type=str, default='GO'
 )
 
 args = parser.parse_args()
 
-def prepare_dataset(path, name): # /src_data/GO0608, GO0608
+def prepare_dataset(path, name): # /src_data/GO, GOA
     """
     Given a path to a folder containing tab separated files :
      train, test, valid
@@ -85,7 +85,7 @@ def prepare_dataset(path, name): # /src_data/GO0608, GO0608
 
 
 if __name__ == "__main__":
-    datasets = ['GO0404', 'GOA0404']
+    datasets = ['GO', 'GOA']
     for d in datasets:
         print("Preparing dataset {}".format(d))
         try:

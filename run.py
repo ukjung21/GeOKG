@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(
     description="Knowledge Graph Embedding"
 )
 parser.add_argument(
-    "--dataset", default="GO0404",
+    "--dataset", default="GO",
     help="Knowledge Graph dataset"
 )
 parser.add_argument(

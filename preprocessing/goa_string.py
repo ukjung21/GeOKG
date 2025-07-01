@@ -40,7 +40,6 @@ def neg_sampling(u, v, goa_num, test_df):
 
 def save_indexed_goa(goa_dir, train_df, valid_df, test_df, neg_df):
 	# Check if we have the ./data directory already
-	goa_dir = '../data/GOA0404/'
 	if(not os.path.isfile(goa_dir)):
 		# Emulate mkdir -p (no error if folder exists)
 		try:
@@ -111,11 +110,11 @@ def save_indexed_ppi_type(src_dir, prot_to_id, eval_type_pth):
 	ppi_type_df.to_csv(eval_type_pth, index=False, header=None)
 
 def main():
-	src_dir = "../src_data/GO0719/"
-	eval_bin_pth = "../evalGene/GOA0719_ppi.csv"
-	eval_score_pth = "../evalGene/GOA0719_score_ppi.csv"
-	eval_type_pth = "../evalGene/GOA0719_type_ppi.csv"
-	goa_dir = "../data/GOA0719/"
+	src_dir = "./src_data/GO/"
+	eval_bin_pth = "./evalGene/GOA_ppi.csv"
+	eval_score_pth = "./evalGene/GOA_score_ppi.csv"
+	eval_type_pth = "./evalGene/GOA_type_ppi.csv"
+	goa_dir = "./data/GOA/"
 
 	go_trp = pd.read_csv(src_dir+'edges.tsv', sep = "\t")
 	goa_trp = pd.read_csv(src_dir+'goa_edges.tsv', sep = "\t")
